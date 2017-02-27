@@ -110,7 +110,7 @@ void loop() {
         
 
 
-    // Bitch water me
+    //  water me
     // if under 25 % plant 1 needs water
     if (moistureValue_1_mapped < plant_needs_water) {
         Serial.println("Water Plant 1");
