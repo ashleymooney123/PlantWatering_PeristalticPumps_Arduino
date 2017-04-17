@@ -1,156 +1,182 @@
-int moistureValue_1; //Soil Sensor 1 0-4095
-int moistureValue_2; //Soil Sensor 2 0-4095
-int moistureValue_3; //Soil Sensor 3 0-4095
+//Library to operate soil moisture sensor
+#include "Adafruit_Si7021.h"
+Adafruit_Si7021 sensor = Adafruit_Si7021();
 
-int map_low = 0;     //Min Plant can be watered
-int map_high = 3000; //Max Plant can be watered
-int moisture_low = 0;
-int moisture_high= 100;
+int moistureValue_1 ; // 0 - 1000 analog
+int moistureValue_2 ; // 0 - 1000 analog
+int moistureValue_3 ; // 0 - 1000 analog
+
+int low_analogValue = 0;     //Min Plant can be watered
+int high_analogValue = 1000; //Max Plant can be watered (Sensor out of soil 425 ... sensor in desired soil = 750-800 ... sensor in damp soil = 900... sensor submerged in water = 1000)
+int low_percentValue = 0;   //percent - Scaled values
+int high_percentValue= 100; //percent - Scaled values
+
 
 int plant_needs_water = 25; //percent values
-int pump_water_until = 75; //percent values
+int pump_water_until = 80; //percent values
 
-int moistureValue_1_mapped; //scaling for later
-int moistureValue_2_mapped;
-int moistureValue_3_mapped;
+int moistureValue_1_Scaled; //scaling analog values
+int moistureValue_2_Scaled;
+int moistureValue_3_Scaled;
 
-int moistureValue_1_mapped_before; // not used USING HARD VALUES FOR NOW
-int moistureValue_2_mapped_before;
-int moistureValue_3_mapped_before;
-
-
-int pump1 = D1; //Relay 1 for pump 5v
-int pump2 = D2; //Relay 2 for pump 5v
-int pump3 = D3; //Relay 3 for pump 5v
-
-// ONLINE HMI
-int AI1_status = 0; 
-int AI2_status = 0;
-int AI3_status = 0;
-
+int pump_1 = 7; //Relay 1  for pump 5v ((J1)internally linked to pin 7)
+int pump_2 = 6; //Relay 3  for pump 5v ((J2)internally linked to pin 6)
+int pump_3 = 5; //Relay 3  for pump 5v ((J3)internally linked to pin 5)
 
 void setup() {
-    
+  // setup code here, to run once:
+
     //Set Analog Inputs from sensors
-    pinMode(A1,INPUT); 
-    pinMode(A2,INPUT);
-    pinMode(A3,INPUT);
-    
+    pinMode (A1, INPUT); //moistureValue_1
+    pinMode (A2, INPUT); //moistureValue_2
+    pinMode (A3, INPUT); //moistureValue_3
+
     //Set Digital Outputs to relays
-    pinMode(pump1, OUTPUT);
-    pinMode(pump2, OUTPUT);
-    pinMode(pump3, OUTPUT);
-    
-    // initialize the serial communications:
-    Serial.begin(9600);
-    
-    //Spark.variable uploads to particles website ... and reads 2c005e000a51353335323536 (the ID)
-    //
-    Spark.variable("AI1_status", &moistureValue_1_mapped, INT);
-    Spark.variable("AI2_status", &moistureValue_2_mapped, INT);
-    Spark.variable("AI3_status", &moistureValue_3_mapped, INT);
+    pinMode(pump_1, OUTPUT);
+    pinMode(pump_2, OUTPUT);
+    pinMode(pump_3, OUTPUT);
+
+       // initialize the serial communications:
+       Serial.begin(9600);
+       Serial.println("Si7021 testing");
+       sensor.begin();
 }
 
 void loop() {
+  // Main code, to run repeatedly:
+  //----------------------------------------------------------------------------------------------------------------------------------------------------
+  // for monitoring humitity and temp. from Si7021 sensor
+  Serial.print("Humidity:    "); Serial.print(sensor.readHumidity(), 2);
+  Serial.print("\tTemperature: "); Serial.println(sensor.readTemperature(), 2); // serial monitor reads up to 2 decimal places
+  delay(100);
+  
+  //----------------------------------------------------------------------------------------------------------------------------------------------------
+     //Tells variable (int) what the value is on A1 (SENSOR 1)
+      moistureValue_1 = analogRead(A1);
     
-    //Tells variable what the value is on A1
-    moistureValue_1 = analogRead(A1);
-    // gives percentage scaling                      0,       3000,     0,            100
-    moistureValue_1_mapped = map(moistureValue_1, map_low, map_high, moisture_low, moisture_high);
+      // array gives percentage scaling                 
+      //                                A1,                  0,           1000,               0,               100
+      moistureValue_1_Scaled = map(moistureValue_1, low_analogValue, high_analogValue, low_percentValue, high_percentValue);
     
-    //makes sure values are between 0 and 100
-    if (moistureValue_1_mapped < moisture_low) {
-        moistureValue_1_mapped = moisture_low;
+      //makes sure values are between 0 and 100 %
+      if (moistureValue_1_Scaled < low_percentValue) 
+        {
+          moistureValue_1_Scaled = low_percentValue;
+        }
+      if (moistureValue_1_Scaled > high_percentValue) 
+        {
+          moistureValue_1_Scaled = high_percentValue;
+        }
+    
+          // Prints sensor 1 readings on serial monitor
+          Serial.print("moisture sensor 1 reads : ");
+          Serial.print(moistureValue_1);
+          Serial.print(" about ");
+          Serial.print(moistureValue_1_Scaled);
+          //Serial.println (ends the line )
+          Serial.println("% watered. ");
+          delay(2000);
+
+  //----------------------------------------------------------------------------------------------------------------------------------------------------
+          //Tells variable (int) what the value is on A2 (SENSOR 2)
+    moistureValue_2 = analogRead(A2);
+    
+    // array gives percentage scaling                 
+    //                                A2,                  0,           1000,               0,               100
+    moistureValue_2_Scaled = map(moistureValue_2, low_analogValue, high_analogValue, low_percentValue, high_percentValue);
+    
+    //makes sure values are between 0 and 100 %
+    if (moistureValue_2_Scaled < low_percentValue) 
+    {
+        moistureValue_2_Scaled = low_percentValue;
     }
-    if (moistureValue_1_mapped > moisture_high) {
-        moistureValue_1_mapped = moisture_high;
+    if (moistureValue_2_Scaled > high_percentValue) 
+    {
+        moistureValue_2_Scaled = high_percentValue;
     }
     
         // Prints sensor 1 readings on serial monitor
-        Serial.print("moisture sensor 1 reads : ");
-        Serial.print(moistureValue_1);
-        Serial.print(" about ");
-        Serial.print(moistureValue_1_mapped);
-        //Serial.println (ends the line )
-        Serial.println("% watered. ");
-        
-        
-    moistureValue_2 = analogRead(A2);
-    moistureValue_2_mapped = map(moistureValue_2, map_low, map_high, moisture_low, moisture_high);
-    
-    if (moistureValue_2_mapped < moisture_low) {
-        moistureValue_2_mapped = moisture_low;
-    }
-    if (moistureValue_2_mapped > moisture_high) {
-        moistureValue_2_mapped = moisture_high;
-    }
-    
         Serial.print("moisture sensor 2 reads : ");
         Serial.print(moistureValue_2);
         Serial.print(" about ");
-        Serial.print(moistureValue_2_mapped);
+        Serial.print(moistureValue_2_Scaled);
+        //Serial.println (ends the line )
         Serial.println("% watered. ");
-        
-        
+        delay(2000);
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+            //Tells variable (int) what the value is on A3 (SENSOR 3)
     moistureValue_3 = analogRead(A3);
-    moistureValue_3_mapped = map(moistureValue_3, map_low, map_high, moisture_low, moisture_high);
     
-    if (moistureValue_3_mapped < moisture_low) {
-        moistureValue_3_mapped = moisture_low;
+    // array gives percentage scaling                 
+    //                                A3,                  0,           1000,               0,               100
+    moistureValue_3_Scaled = map(moistureValue_3, low_analogValue, high_analogValue, low_percentValue, high_percentValue);
+    
+    //makes sure values are between 0 and 100 %
+    if (moistureValue_3_Scaled < low_percentValue) 
+    {
+        moistureValue_3_Scaled = low_percentValue;
     }
-    if (moistureValue_3_mapped > moisture_high) {
-        moistureValue_3_mapped = moisture_high;
+    if (moistureValue_3_Scaled > high_percentValue) 
+    {
+        moistureValue_3_Scaled = high_percentValue;
     }
     
+        // Prints sensor 1 readings on serial monitor
         Serial.print("moisture sensor 3 reads : ");
         Serial.print(moistureValue_3);
         Serial.print(" about ");
-        Serial.print(moistureValue_3_mapped);
+        Serial.print(moistureValue_3_Scaled);
+        //Serial.println (ends the line )
         Serial.println("% watered. ");
-        
+        delay(2000);
 
-
+    //----------------------------------------------------------------------------------------------------------------------------------------------------
     //  water me
     // if under 25 % plant 1 needs water
-    if (moistureValue_1_mapped < plant_needs_water) {
+    //WRITTEN PROMPTS
+    if (moistureValue_1_Scaled < plant_needs_water) {
         Serial.println("Water Plant 1");
     }
     // if under 25 % plant 2 needs water
-    if (moistureValue_2_mapped < plant_needs_water) {
+    if (moistureValue_2_Scaled < plant_needs_water) {
         Serial.println("Water Plant 2");
     }
     // if under 25 % plant 3 needs water
-    if (moistureValue_3_mapped < plant_needs_water) {
+    if (moistureValue_3_Scaled < plant_needs_water) {
         Serial.println("Water Plant 3");
     }
     
 
 
     // pump stuff PUMP ME UP
-    // pump goes on if analog value is under 1000
-    if (moistureValue_1 <= 1000) { //33.3%
-        digitalWrite(pump1, HIGH);
+    // pump goes on if analog value is under 800 (or 80%)
+    if (moistureValue_1_Scaled <= pump_water_until) { // if the percent from the sensor is less then 80% turn pump 1 relay on
+        digitalWrite(pump_1, HIGH);
     }
-    // pump is off if analog value is over 2500
-    else if (moistureValue_1 >= 2500) { //83%
-        digitalWrite(pump1, LOW);
-    }
-    
-    
-    if (moistureValue_2 <= 1000) { //26.3%
-        digitalWrite(pump2, HIGH);
-    }
-    else if (moistureValue_2 >= 2500) { //65.7%
-        digitalWrite(pump2, LOW);
+    // pump is off if analog value is over 250
+    else if (moistureValue_1_Scaled >= pump_water_until) { //80%
+        digitalWrite(pump_1, LOW);
     }
     
     
-    if (moistureValue_3 <= 1000) { //26.3%
-        digitalWrite(pump3, HIGH);
+    if (moistureValue_2_Scaled <= pump_water_until) { // if the percent from the sensor is less then 80% turn pump 2 relay on
+        digitalWrite(pump_2, HIGH);
     }
-    else if (moistureValue_3 >= 2500) { //65.7%
-        digitalWrite(pump3, LOW);
+    // pump is off if analog value is over 250
+    else if (moistureValue_2_Scaled >= pump_water_until) { //80%
+        digitalWrite(pump_2, LOW);
     }
+    
+    
+     if (moistureValue_3_Scaled <= pump_water_until) { // if the percent from the sensor is less then 80% turn pump 3 relay on
+        digitalWrite(pump_3, HIGH);
+    }
+    // pump is off if analog value is over 250
+    else if (moistureValue_3_Scaled >= pump_water_until) { //80%
+        digitalWrite(pump_3, LOW);
+    }
+    
     // BREAK FOR PROGRAM    
     delay(1000);
 }
+
